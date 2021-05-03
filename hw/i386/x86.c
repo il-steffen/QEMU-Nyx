@@ -660,6 +660,10 @@ void x86_bios_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
     int bios_size, isa_bios_size;
     int ret;
 
+    if (getenv("QEMU_BIOS_IN_RAM")) {
+      isapc_ram_fw = true;
+    }
+
     /* BIOS load */
     if (bios_name == NULL) {
         bios_name = BIOS_FILENAME;
