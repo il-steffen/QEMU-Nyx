@@ -40,6 +40,8 @@ along with QEMU-PT.  If not, see <http://www.gnu.org/licenses/>.
 #include <sys/types.h>
 #include <immintrin.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "sysemu/kvm_int.h"
 #include "sysemu/cpus.h"
@@ -245,27 +247,41 @@ void fast_reload_destroy(fast_reload_t* self){
 */
 }
 
-inline static void unlock_snapshot(const char* folder){
-    char* info_file;
-    char* lock_file;
+inline static bool lock_snapshot(const char* folder){
+    char* filename;
+	int ignore __attribute__((unused));
 
-    assert(asprintf(&info_file, "%s/INFO.txt", folder) != -1);
+    assert(asprintf(&filename, "%s/INFO.txt", folder) != -1);
 
-    /* info file */
-    FILE* f_info = fopen(info_file, "w+b");
-    if(GET_GLOBAL_STATE()->fast_reload_pre_image){
+    /* use exclusive open for inter-process lock */
+	int fd = open(filename, O_CREAT | O_EXCL | O_WRONLY, 0644);
+	if (fd == -1) {
+		/* no lock for us */
+	   	assert(errno == EEXIST);
+		free(filename);
+		return false;
+	}
+
+    if(GET_GLOBAL_STATE()->fast_reload_pre_image) {
         const char* msg = "THIS IS A NYX PRE IMAGE SNAPSHOT FOLDER!\n";
-        fwrite(msg, strlen(msg), 1, f_info);
+        ignore = write(fd, msg, strlen(msg));
     }
-    else{
+    else {
         const char* msg = "THIS IS A NYX SNAPSHOT FOLDER!\n";
-        fwrite(msg, strlen(msg), 1, f_info);
+        ignore = write(fd, msg, strlen(msg));
     }
-    fclose(f_info);
+    close(fd);
+	free(filename);
+	return true;
+}
+
+inline static void unlock_snapshot(const char* folder){
+    char* lock_file;
 
     assert(asprintf(&lock_file, "%s/ready.lock", folder) != -1);
 
-    int fd = open(lock_file, O_WRONLY | O_CREAT, S_IRWXU);
+	int fd = open(lock_file, O_CREAT | O_EXCL | O_WRONLY, 0644);
+	assert(fd); /* sanity check - this file better had not existed yet */
     close(fd);
 
     free(lock_file);
@@ -278,7 +294,6 @@ inline static void wait_for_snapshot(const char* folder){
 
     while( access(lock_file, F_OK ) == -1 ) {
         sleep(1);
-
     }
     free(lock_file);
 }
@@ -292,6 +307,13 @@ void fast_reload_serialize_to_file(fast_reload_t* self, const char* folder, bool
         QEMU_PT_PRINTF(RELOAD_PREFIX,"Folder %s does not exist...failed!", folder);
         assert(0);
     }
+
+    if (!lock_snapshot(folder)) {
+        debug_printf("================ Refuse to overwrite at %s! ======\n", folder);
+		// wait here for the peer to complete rather than *every* reload
+		wait_for_snapshot(folder);
+		return;
+	}
 
     /* shadow memory state */
     shadow_memory_serialize(self->shadow_memory_state, folder);
