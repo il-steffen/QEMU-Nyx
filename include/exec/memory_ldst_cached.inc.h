@@ -82,7 +82,7 @@ static inline void ADDRESS_SPACE_ST_CACHED(l)(MemoryRegionCache *cache,
 static inline void ADDRESS_SPACE_ST_CACHED(w)(MemoryRegionCache *cache,
     hwaddr addr, uint32_t val, MemTxAttrs attrs, MemTxResult *result)
 {
-    assert(addr < cache->len && 2 <= cache->len - addr);
+    //assert(addr < cache->len && 2 <= cache->len - addr);
     if (likely(cache->ptr)) {
         ST_P(w)(cache->ptr + addr, val);
     } else {
