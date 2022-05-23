@@ -198,7 +198,7 @@ static inline void fast_snapshot_create_incremental_operation(fast_reload_t* sel
     nyx_snapshot_nyx_fdl_user_save_root_pages(self->fdl_user_state, self->shadow_memory_state, self->blocklist);
     shadow_memory_switch_snapshot(self->shadow_memory_state, true);
 
-    kvm_arch_put_registers(qemu_get_cpu(0), KVM_PUT_FULL_STATE_FAST);
+    assert(0 <= kvm_arch_put_registers(qemu_get_cpu(0), KVM_PUT_FULL_STATE_FAST));
     qemu_get_cpu(0)->vcpu_dirty = false;
 }
 
@@ -341,7 +341,7 @@ static void fast_reload_create_from_snapshot(fast_reload_t* self, const char* fo
 
     cpu_synchronize_all_post_init();
     qemu_get_cpu(0)->vcpu_dirty = true;
-    kvm_arch_put_registers(qemu_get_cpu(0), KVM_PUT_FULL_STATE);
+    assert(0 <= kvm_arch_put_registers(qemu_get_cpu(0), KVM_PUT_FULL_STATE));
     if(!pre_snapshot){
         nyx_device_state_save_tsc(self->device_state);
     }
@@ -427,7 +427,7 @@ void fast_reload_restore(fast_reload_t* self){
     
     //set_tsc_value(self, self->tmp_snapshot.enabled);
     nyx_device_state_post_restore(self->device_state);
-    kvm_arch_put_registers(qemu_get_cpu(0), KVM_PUT_FULL_STATE_FAST);
+    assert(0 <= kvm_arch_put_registers(qemu_get_cpu(0), KVM_PUT_FULL_STATE_FAST));
     qemu_get_cpu(0)->vcpu_dirty = false;
 
     //bdrv_drain_all_end();
