@@ -253,7 +253,7 @@ void synchronization_lock(void){
 		redqueen_trace_flush();
 	}
 
-	interface_send_char(NYX_INTERFACE_PING);
+	assert(interface_send_char(NYX_INTERFACE_PING));
 
 	pthread_cond_wait(&synchronization_lock_condition, &synchronization_lock_mutex);
 	pthread_mutex_unlock(&synchronization_lock_mutex);

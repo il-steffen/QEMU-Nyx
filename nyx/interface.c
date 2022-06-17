@@ -166,8 +166,6 @@ static int nyx_create_payload_buffer(nyx_interface_state *s, uint64_t buffer_siz
 	GET_GLOBAL_STATE()->shared_payload_buffer_fd = fd;
 	GET_GLOBAL_STATE()->shared_payload_buffer_size = buffer_size;
 
-	init_send_char(s);
-
 	return 0;
 }
 
@@ -327,6 +325,8 @@ static bool verify_workdir_state(nyx_interface_state *s, Error **errp){
 	init_aux_buffer(tmp);
 	free(tmp);
 
+	/* send first ready signal on socket (frontend may connect to interface) */
+	init_send_char(s);
 
 	return true;
 }
