@@ -201,13 +201,6 @@ bool in_fuzzing_loop = false;
 
 //bool last_timeout = false;
 
-void synchronization_lock_hprintf(void){
-	pthread_mutex_lock(&synchronization_lock_mutex);
-	interface_send_char(NYX_INTERFACE_PING);
-
-	pthread_cond_wait(&synchronization_lock_condition, &synchronization_lock_mutex);
-	pthread_mutex_unlock(&synchronization_lock_mutex);
-}
 void synchronization_lock(void){
 
 	timeout_detector_t timer = GET_GLOBAL_STATE()->timeout_detector;

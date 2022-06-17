@@ -75,8 +75,8 @@ void handle_hypercall_kafl_nested_hprintf(struct kvm_run *run, CPUState *cpu, ui
 	//fprintf(stderr, ANSI_COLOR_YELLOW "%s" ANSI_COLOR_RESET, hprintf_buffer);
 
 	set_hprintf_auxiliary_buffer(GET_GLOBAL_STATE()->auxilary_buffer, hprintf_buffer, strnlen(hprintf_buffer, 0x1000)+1);
-	synchronization_lock_hprintf();
 	//hexdump_kafl(hprintf_buffer, 0x200);
+	synchronization_lock();
 }
 
 void handle_hypercall_kafl_nested_prepare(struct kvm_run *run, CPUState *cpu, uint64_t hypercall_arg){
