@@ -8,6 +8,7 @@
 #include "qemu/rcu_queue.h"
 
 #include "nyx/debug.h"
+#include "nyx/helpers.h"
 #include "nyx/memory_access.h"
 
 #include "nyx/snapshot/helper.h"
@@ -73,7 +74,7 @@ shadow_memory_t *shadow_memory_init(void)
                               MAP_SHARED, self->snapshot_ptr_fd, 0);
     madvise(self->snapshot_ptr, self->memory_size, MADV_RANDOM | MADV_MERGEABLE);
 
-    nyx_debug_p(RELOAD_PREFIX, "Allocating Memory (%p) Size: %lx",
+    nyx_debug_p(RELOAD_PREFIX, "Allocating Memory (%p) Size: %lx\n",
                 self->snapshot_ptr, self->memory_size);
 
 
@@ -81,7 +82,7 @@ shadow_memory_t *shadow_memory_init(void)
     uint8_t  i           = 0;
     uint8_t  regions_num = 0;
     QLIST_FOREACH_RCU (block, &ram_list.blocks, next) {
-        nyx_debug_p(RELOAD_PREFIX, "%lx %lx %lx\t%s\t%p", block->offset,
+        nyx_debug_p(RELOAD_PREFIX, "%lx %lx %lx\t%s\t%p\n", block->offset,
                     block->used_length, block->max_length, block->idstr, block->host);
         block_array[i] = block;
 
@@ -187,13 +188,7 @@ shadow_memory_t *shadow_memory_init_from_snapshot(const char *snapshot_folder,
     assert(fread(&head, sizeof(fast_reload_dump_head_t), 1, file_mem_meta) == 1);
     fclose(file_mem_meta);
 
-    if (self->ram_regions_num != head.shadow_memory_regions) {
-        nyx_error(
-            "Error: self->ram_regions_num (%d) != head.shadow_memory_regions (%d)\n",
-            self->ram_regions_num, head.shadow_memory_regions);
-        exit(1);
-    }
-
+    assert(self->ram_regions_num == head.shadow_memory_regions);
     // printf("LOAD -> self->ram_regions_num: %d\n", self->ram_regions_num);
 
     FILE *file_mem_dump = fopen(path_dump, "r");
@@ -208,13 +203,12 @@ shadow_memory_t *shadow_memory_init_from_snapshot(const char *snapshot_folder,
 
     if (self->memory_size != file_mem_dump_size) {
         if (file_mem_dump_size >= VGA_SIZE) {
-            nyx_error("ERROR: guest size should be %ld MB - set it to %ld MB\n",
+            nyx_abort("Guest size should be %ld MB - set it to %ld MB\n",
                       (file_mem_dump_size - VGA_SIZE) >> 20,
                       (self->memory_size - VGA_SIZE) >> 20);
-            exit(1);
         } else {
-            nyx_error("ERROR: guest size: %ld bytes\n", file_mem_dump_size);
-            exit(1);
+            nyx_abort("Guest mem size != file size: %ld != %ld bytes\n",
+                      self->memory_size, file_mem_dump_size);
         }
     }
     assert(self->memory_size == ftell(file_mem_dump));
@@ -233,7 +227,7 @@ shadow_memory_t *shadow_memory_init_from_snapshot(const char *snapshot_folder,
     uint8_t  i           = 0;
     uint8_t  regions_num = 0;
     QLIST_FOREACH_RCU (block, &ram_list.blocks, next) {
-        nyx_debug_p(RELOAD_PREFIX, "%lx %lx %lx\t%s\t%p", block->offset,
+        nyx_debug_p(RELOAD_PREFIX, "%lx %lx %lx\t%s\t%p\n", block->offset,
                     block->used_length, block->max_length, block->idstr, block->host);
 
         block_array[i]                 = block;

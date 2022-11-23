@@ -88,23 +88,20 @@ uint64_t get_paging_phys_addr(CPUState *cpu, uint64_t cr3, uint64_t addr)
     case mm_32_protected:
         return addr & 0xFFFFFFFFULL;
     case mm_32_paging:
-        fprintf(stderr, "mem_mode: mm_32_paging not implemented!\n");
-        abort();
+        nyx_abort("mem_mode: mm_32_paging not implemented!\n");
     case mm_32_pae:
-        fprintf(stderr, "mem_mode: mm_32_pae not implemented!\n");
-        abort();
+        nyx_abort("mem_mode: mm_32_pae not implemented!\n");
     case mm_64_l4_paging:
         return get_48_paging_phys_addr(cr3, addr, false);
     case mm_64_l5_paging:
-        fprintf(stderr, "mem_mode: mm_64_l5_paging not implemented!\n");
-        abort();
+        nyx_abort("mem_mode: mm_64_l5_paging not implemented!\n");
     case mm_unkown:
-        fprintf(stderr, "mem_mode: unkown!\n");
-        abort();
+        nyx_abort("mem_mode: unkown!\n");
     }
     return 0;
 }
 
+// FIXME: seems like a duplicate of get_paging_phys_addr()?
 static uint64_t get_paging_phys_addr_snapshot(CPUState *cpu, uint64_t cr3, uint64_t addr)
 {
     if (GET_GLOBAL_STATE()->mem_mode == mm_unkown) {
@@ -115,19 +112,15 @@ static uint64_t get_paging_phys_addr_snapshot(CPUState *cpu, uint64_t cr3, uint6
     case mm_32_protected:
         return addr & 0xFFFFFFFFULL;
     case mm_32_paging:
-        fprintf(stderr, "mem_mode: mm_32_paging not implemented!\n");
-        abort();
+        nyx_abort("mem_mode: mm_32_paging not implemented!\n");
     case mm_32_pae:
-        fprintf(stderr, "mem_mode: mm_32_pae not implemented!\n");
-        abort();
+        nyx_abort("mem_mode: mm_32_pae not implemented!\n");
     case mm_64_l4_paging:
         return get_48_paging_phys_addr(cr3, addr, true);
     case mm_64_l5_paging:
-        fprintf(stderr, "mem_mode: mm_64_l5_paging not implemented!\n");
-        abort();
+        nyx_abort("mem_mode: mm_64_l5_paging not implemented!\n");
     case mm_unkown:
-        fprintf(stderr, "mem_mode: unkown!\n");
-        abort();
+        nyx_abort("mem_mode: unkown!\n");
     }
     return 0;
 }
@@ -208,10 +201,9 @@ bool remap_slot(uint64_t  addr,
         phys_addr = get_paging_phys_addr(cpu, cr3, (addr & x86_64_PAGE_MASK));
 
         if (phys_addr == INVALID_ADDRESS) {
-            fprintf(stderr, "[QEMU-Nyx] Error: failed to translate v_addr (0x%lx) to p_addr!\n",
-                    addr);
-            fprintf(stderr, "[QEMU-Nyx] Check if the buffer is present in the "
-                            "guest's memory...\n");
+            nyx_error("Failed to translate v_addr (0x%lx) to p_addr!\n"
+                      "Check if the buffer is present in the guest's memory...\n",
+                      addr);
             exit(1);
         }
     }
@@ -373,7 +365,7 @@ bool write_virtual_memory(uint64_t address, uint8_t *data, uint32_t size, CPUSta
             cpu_get_phys_page_attrs_debug(cpu, (address & x86_64_PAGE_MASK), &attrs);
 
         if (phys_addr == INVALID_ADDRESS) {
-            nyx_debug_p(MEM_PREFIX, "phys_addr == -1:\t%lx", address);
+            nyx_debug_p(MEM_PREFIX, "phys_addr == -1:\t%lx\n", address);
             return false;
         }
 
@@ -381,7 +373,7 @@ bool write_virtual_memory(uint64_t address, uint8_t *data, uint32_t size, CPUSta
         res = address_space_rw(cpu_get_address_space(cpu, asidx), phys_addr,
                                MEMTXATTRS_UNSPECIFIED, data, l, true);
         if (res != MEMTX_OK) {
-            nyx_debug_p(MEM_PREFIX, "!MEMTX_OK:\t%lx", address);
+            nyx_debug_p(MEM_PREFIX, "!MEMTX_OK:\t%lx\n", address);
             return false;
         }
 
@@ -444,7 +436,7 @@ static int redqueen_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint 
         address_space_rw(cpu_get_address_space(cs, asidx), phys_addr,
                          MEMTXATTRS_UNSPECIFIED, (uint8_t *)&int3, 1, 1))
     {
-        // fprintf(stderr, "%s WRITTE AT %lx %lx failed!\n", __func__, bp->pc, phys_addr);
+        // nyx_debug("%s WRITE AT %lx %lx failed!\n", __func__, bp->pc, phys_addr);
         return -EINVAL;
     }
 
@@ -465,7 +457,7 @@ static int redqueen_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint 
         address_space_rw(cpu_get_address_space(cs, asidx), phys_addr,
                          MEMTXATTRS_UNSPECIFIED, (uint8_t *)&bp->saved_insn, 1, 1))
     {
-        // fprintf(stderr, "%s failed\n", __func__);
+        // nyx_debug("%s failed\n", __func__);
         return -EINVAL;
     }
 
@@ -908,11 +900,8 @@ bool read_virtual_memory(uint64_t address, uint8_t *data, uint32_t size, CPUStat
                 len_skipped = size - amount_copied;
             }
 
-            nyx_error("Warning, read from unmapped memory:\t%lx, skipping to %lx",
-                      address, next_page);
-            nyx_debug_p(MEM_PREFIX,
-                        "Warning, read from unmapped memory:\t%lx, skipping to %lx",
-                        address, next_page);
+            nyx_warn("Read from unmapped memory addr %lx, skipping to %lx\n",
+                     address, next_page);
             memset(data + amount_copied, ' ', len_skipped);
             address += len_skipped;
             amount_copied += len_skipped;
@@ -929,8 +918,9 @@ bool read_virtual_memory(uint64_t address, uint8_t *data, uint32_t size, CPUStat
                                            phys_addr, MEMTXATTRS_UNSPECIFIED,
                                            tmp_buf, len_to_copy, 0);
         if (txt) {
-            nyx_debug_p(MEM_PREFIX, "Warning, read failed:\t%lx (%lx)", address,
-                        phys_addr);
+            nyx_debug_p(MEM_PREFIX,
+                        "Warning, read failed for virt addr %lx (phys: %lx)\n",
+                        address, phys_addr);
         }
 
         memcpy(data + amount_copied, tmp_buf, len_to_copy);
@@ -980,8 +970,8 @@ bool dump_page_cr3_ht(uint64_t address, uint8_t *data, CPUState *cpu, uint64_t c
                          MEMTXATTRS_UNSPECIFIED, data, 0x1000, 0))
     {
         if (phys_addr != INVALID_ADDRESS) {
-            nyx_error("%s: Warning, read failed:\t%lx (%lx)\n", __func__, address,
-                      phys_addr);
+            nyx_warn("%s: Read failed for virt addr %lx (phys: %lx)\n", __func__,
+                     address, phys_addr);
         }
         return false;
     }
@@ -999,8 +989,8 @@ bool dump_page_ht(uint64_t address, uint8_t *data, CPUState *cpu)
                          MEMTXATTRS_UNSPECIFIED, data, 0x1000, 0))
     {
         if (phys_addr != 0xffffffffffffffffULL) {
-            nyx_error("%s: Warning, read failed:\t%lx (%lx)\n", __func__, address,
-                      phys_addr);
+            nyx_warn("%s: Read failed for virt addr %lx (phys: %lx)\n", __func__,
+                     address, phys_addr);
         }
     }
     return true;

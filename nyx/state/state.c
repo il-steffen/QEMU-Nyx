@@ -33,8 +33,6 @@ along with QEMU-PT.  If not, see <http://www.gnu.org/licenses/>.
 #include "nyx/sharedir.h"
 #include "nyx/state/state.h"
 
-// #define STATE_VERBOSE
-
 /* global singleton */
 qemu_nyx_state_t global_state;
 
@@ -42,9 +40,8 @@ qemu_nyx_state_t global_state;
 
 void state_init_global(void)
 {
-#ifdef STATE_VERBOSE
-    fprintf(stderr, "--> %s <--\n", __func__);
-#endif
+    nyx_trace();
+
     /* safety first */
     assert(libxdc_get_release_version() == LIBXDC_RELEASE_VERSION_REQUIRED);
 
@@ -220,13 +217,13 @@ static void *alloc_auxiliary_buffer(const char *file)
     assert(ftruncate(fd, AUX_BUFFER_SIZE) == 0);
     stat(file, &st);
 
-    nyx_debug_p(INTERFACE_PREFIX, "new aux buffer file: (max size: %x) %lx",
+    nyx_debug_p(INTERFACE_PREFIX, "new aux buffer file: (max size: %x) %lx\n",
                 AUX_BUFFER_SIZE, st.st_size);
 
     assert(AUX_BUFFER_SIZE == st.st_size);
     ptr = mmap(0, AUX_BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (ptr == MAP_FAILED) {
-        fprintf(stderr, "aux buffer allocation failed!\n");
+        nyx_error("aux buffer allocation failed!\n");
         return (void *)-1;
     }
     return ptr;
