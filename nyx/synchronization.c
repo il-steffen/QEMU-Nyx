@@ -410,7 +410,7 @@ void synchronization_disable_pt(CPUState *cpu)
         set_success_auxiliary_result_buffer(GET_GLOBAL_STATE()->auxilary_buffer, 0);
     }
 
-    pt_disable(qemu_get_cpu(0), false);
+    pt_disable(cpu, false);
 
     handle_tmp_snapshot_state();
 
